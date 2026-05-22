@@ -91,5 +91,5 @@ uv run python scripts/build_index.py
 - Индексируется только текст описаний, CSV не используется.
 
 ## Контакты
-Телеграм: @marat_kilop
+Телеграм: @marat_ufa_kilop
 Подписывайтесь на канал: @Marat_notes
