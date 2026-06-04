@@ -1,5 +1,3 @@
-"""Streamlit UI: вопрос -> фрагменты -> ответ -> источники."""
-
 import streamlit as st
 
 from app.config import INDEX_CHUNKS_JSONL, MATRIX_NPZ, TOP_K, VECTORIZER_PKL
@@ -8,12 +6,11 @@ from app.prompts import MIN_SCORE
 from app.retriever import Retriever
 
 DEMO_QUESTIONS = [
-    "Ипотека - закрытие ипотечной сделки",
-    "Какие переменные в датасете про безработицу?",
-    "За какой период данные об инфляции?",
-    "Как приготовить борщ?",
+    "how to make chicken soup?",
+    "what ingredients do I need for pasta?",
+    "how to bake chocolate cake?",
+    "how to make pizza dough?",
 ]
-
 
 def index_exists() -> bool:
     return all(p.exists() for p in (VECTORIZER_PKL, MATRIX_NPZ, INDEX_CHUNKS_JSONL))
@@ -31,57 +28,36 @@ def render_chunk(i: int, src: dict, expanded: bool = True) -> None:
         st.text(src["text"])
 
 
-def render_fragments(sources: list[dict]) -> None:
-    st.subheader("Найденные фрагменты (top-k)")
-    if not sources:
-        st.info("Фрагменты не найдены.")
-        return
-    for i, src in enumerate(sources, 1):
-        render_chunk(i, src, expanded=src["score"] >= MIN_SCORE)
-
-
-def render_sources(sources: list[dict]) -> None:
-    st.subheader("Источники")
-    if not sources:
-        st.info("Источники отсутствуют.")
-        return
-    for i, src in enumerate(sources, 1):
-        render_chunk(i, src, expanded=False)
-
-
 def main() -> None:
-    st.set_page_config(page_title="RAG Tutorial", layout="wide")
-    st.title("RAG Tutorial")
-    st.caption("Учебный RAG: TF-IDF + demo-ответ с источниками")
+    st.set_page_config(page_title="Recipe RAG", layout="wide")
+    st.title("🍳 Recipe RAG")
+    st.caption("RAG system for recipes: TF-IDF retrieval + demo answer with sources")
 
     if not index_exists():
-        st.error(
-            "Индекс не собран. Сначала выполните:\n\n"
-            "`uv run python scripts/build_index.py`"
-        )
+        st.error("Index not built. Run: `uv run python scripts/build_index.py`")
         st.stop()
 
-    st.sidebar.header("Demo-вопросы")
+    st.sidebar.header("Demo questions")
     for q in DEMO_QUESTIONS:
         if st.sidebar.button(q, use_container_width=True):
             st.session_state["question"] = q
 
-    question = st.text_input("Ваш вопрос", key="question")
+    question = st.text_input("Your question", key="question")
 
-    if st.button("Спросить", type="primary"):
+    if st.button("Ask", type="primary"):
         if not question.strip():
-            st.warning("Введите вопрос.")
+            st.warning("Please enter a question.")
             st.stop()
 
-        with st.spinner("Поиск..."):
+        with st.spinner("Searching..."):
             result = ask(question.strip(), k=TOP_K, retriever=load_retriever())
 
-        render_fragments(result["sources"])
+        st.subheader("Found fragments (top-k)")
+        for i, src in enumerate(result["sources"], 1):
+            render_chunk(i, src, expanded=src["score"] >= MIN_SCORE)
 
-        st.subheader("Ответ")
+        st.subheader("Answer")
         st.text(result["answer"])
-
-        render_sources(result["sources"])
 
 
 if __name__ == "__main__":
