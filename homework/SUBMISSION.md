@@ -1,15 +1,35 @@
 # Submission
 
-Заполните файл перед отправкой PR.
+## Repository
+https://github.com/fidaash/rag-tutorial
 
-## Ссылка на репозиторий с заданием
+## Dataset
+Food.com Recipes — 2000 recipes, 5951 chunks after splitting.
 
-- Repo URL: `<вставьте ссылку на ваш репозиторий>`
+## How to run
+```bash
+uv sync
+uv run python scripts/ingest.py
+uv run python scripts/build_index.py
+uv run streamlit run app/main.py
+```
 
-## Автор
+## Demo questions and answers
 
-- ФИО / ник: `<укажите>`
+**Q1: how to make chicken soup?**
+Found: "7 can soup", "chicken noodle soup" — recipes with chicken broth and vegetables.
 
-## Комментарий
+**Q2: how to bake chocolate cake?**
+Found: "100 chocolate cake", "3 ingredient triple fudge cake" — recipes with cocoa powder and flour.
 
-- Кратко: что реализовано, какие данные использованы, что улучшено.
+**Q3: what ingredients do I need for pasta?**
+Found: "20 minute pasta bake", "3 cans and a box chili pasta" — recipes with pasta, sauce, cheese.
+
+## Negative question
+
+**Q: Какие переменные в датасете про безработицу?**
+Answer: "В базе не найдено релевантных фрагментов. Ответить по данным невозможно."
+— Correctly refused because the database contains only recipes, not economic data.
+
+## Tests
+11 tests passing green.
