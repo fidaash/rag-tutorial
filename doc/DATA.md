@@ -1,116 +1,22 @@
-# Данные и назначение репозитория
+# Data Description
 
-Документ описывает, **какие данные** использует учебный RAG, **откуда** они взяты и **что именно** попадает в индекс.
+## Source
+Food.com Recipes dataset from Kaggle.
+URL: https://www.kaggle.com/datasets/shuyangli94/food-com-recipes-and-user-interactions
 
----
+## What is indexed
+- 2000 recipes from RAW_recipes.csv
+- Each recipe contains: name, ingredients, steps, description, cooking time
+- Total chunks after splitting: 5951
 
-## Назначение репозитория
+## Fields used
+- name: recipe title
+- ingredients: list of ingredients
+- steps: cooking instructions
+- description: short description
+- minutes: cooking time in minutes
 
-**Для кого:** студенты и начинающие разработчики, которые учатся строить RAG с нуля.
-
-**Что демонстрирует:**
-
-- полный offline-pipeline: сырые данные → документы → чанки → TF-IDF индекс → поиск → demo-ответ;
-- ответ **только по найденным фрагментам** с указанием источника (`doc_id`, score);
-- явный **отказ**, если релевантного контекста нет;
-- Streamlit UI для интерактивной проверки.
-
-**Границы MVP:**
-
-- поиск по **слова**м (TF-IDF), не embeddings и не LLM;
-- demo-режим без внешних API;
-- небольшой локальный корпус (9 документов, ~29 чанков);
-- не production-система, а **учебный шаблон** для повторения на своих данных.
-
-Идея продукта изначально — описания **экономических датасетов Kaggle** (см. [00_project_idea.md](00_project_idea.md)).  
-В текущем MVP в качестве демо-корпуса используются **русскоязычные тексты жалоб CFPB** — структура pipeline та же, данные проще получить и воспроизвести локально.
-
----
-
-## Источники данных
-
-| Источник | Файл в проекте | Комментарий |
-|----------|----------------|-------------|
-| [CFPB Consumer Complaint Database](https://www.consumerfinance.gov/data-research/consumer-complaints/) | `data/raw/rows.csv` | Скачивается локально (Kaggle или официальный архив CFPB). **Не коммитится** — см. `.gitignore`. |
-| Подготовленный корпус | `data/raw/datasets.json` | 9 записей: `id`, `name`, `text` (на русском). **Коммитится** — готовый демо-набор. |
-| Скрипт подготовки | `scripts/prepare_datasets.py` | Выборка из `rows.csv` + ручные переводы в `TRANSLATIONS`. |
-
-**Kaggle:** [Consumer Complaint Database (CFPB)](https://www.kaggle.com/datasets/datasnaek/consumer-complaint-database) — типичная точка входа для скачивания `rows.csv`.
-
-**Лицензия:** данные CFPB — открытые данные правительства США (public domain / open government data).  
-Уточняйте актуальные условия на [consumerfinance.gov](https://www.consumerfinance.gov/data-research/consumer-complaints/) и на странице датасета Kaggle при скачивании.
-
-**Дата выгрузки / подготовки:** подготовлено для учебного репозитория, **май 2026**.  
-При пересборке `datasets.json` из свежего `rows.csv` дата и состав записей могут отличаться.
-
----
-
-## Что индексируем
-
-| Поле / артефакт | Индексируется? | Где используется |
-|-----------------|:--------------:|------------------|
-| `text` из `datasets.json` | **Да** | TF-IDF матрица, поиск, demo-ответ |
-| `name` | Нет (метаданные) | UI, источники — подпись документа |
-| `doc_id` | Нет (метаданные) | UI, источники — идентификатор записи |
-| `source_file` | Нет | `documents.jsonl`, трассировка происхождения |
-
-**Pipeline:**
-
-```
-datasets.json → documents.jsonl → chunks.jsonl → vectorizer.pkl + matrix.npz
-```
-
-- **Чанки:** нарезка по абзацам, max 400 символов, overlap 50 (`app/chunker.py`).
-- **Поиск:** cosine similarity по TF-IDF векторам (`app/retriever.py`).
-
----
-
-## Что не индексируем
-
-| Не индексируется | Причина |
-|------------------|---------|
-| `data/raw/rows.csv` | Сырой CSV CFPB — только для локальной подготовки `datasets.json` |
-| CSV-файлы Kaggle | MVP работает с текстом описаний, не с табличным анализом |
-| Kaggle API | Не используется в runtime |
-| Секреты, API-ключи | Demo-режим без внешних LLM |
-| `data/processed/*.jsonl` | Промежуточные артефакты, генерируются скриптами |
-| `data/index/*` | Индекс пересобирается командой `build_index.py` |
-
----
-
-## Состав демо-корпуса
-
-9 документов (`doc_id` 0…8), темы — финансовые жалобы потребителей (CFPB):
-
-| doc_id | Тема (кратко) |
-|--------|----------------|
-| 0 | Взыскание долга |
-| 1 | Студенческий кредит |
-| 2 | Ипотека (Citibank) |
-| 3 | Кредитная / предоплаченная карта |
-| 4 | Расчётный счёт (Wells Fargo) |
-| 5 | Денежный перевод (Xoom) |
-| 6 | Краткосрочный займ |
-| 7 | Кредитная карта (Capital One) |
-| 8 | Банковский счёт (U.S. Bank) |
-
-**Рабочий demo-запрос в UI:** «Ипотека - закрытие ипотечной сделки» → `doc_id=2`.
-
-**Запросы про безработицу / инфляцию** дают отказ — таких тем в корпусе нет (это ожидаемое поведение для negative-case).
-
----
-
-## Как обновить данные
-
-1. Скачать `rows.csv` с Kaggle / CFPB локально в `data/raw/`.
-2. При необходимости обновить переводы в `scripts/prepare_datasets.py`.
-3. Запустить: `uv run python scripts/prepare_datasets.py`
-4. Пересобрать индекс: `uv run python scripts/build_index.py`
-
----
-
-## Связанные документы
-
-- [00_project_idea.md](00_project_idea.md) — идея и целевые данные Kaggle
-- [vision.md](vision.md) — стек и границы MVP
-- [tasklist.md](tasklist.md) — итерационный план
+## Why this dataset
+Recipes are a great use case for RAG — users can ask natural questions
+like "how to make chocolate cake?" and get relevant recipes with ingredients
+and steps as sources.
